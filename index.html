@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="theme-color" content="#0b0f19" />
+    <meta name="description" content="Dyslexia Assistant — A cinematic, fluid, highly accessible web application empowering dyslexic students with adaptive typography, synchronized voice tracking, and focus rulers." />
+    <meta name="keywords" content="dyslexia, reading assistant, accessibility, bionic reading, text-to-speech, focus ruler, neurodiversity, WCAG AAA" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Google Fonts: Lexend & Atkinson Hyperlegible -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- OpenDyslexic CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic.css" />
+
+    <title>Dyslexia Assistant — Effortless, Confident Reading</title>
+  </head>
+  <body class="antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Service worker registration
+      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.warn('Service worker registration failed:', err);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

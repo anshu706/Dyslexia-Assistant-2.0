@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --app-bg: #0b0f19;
+    --app-surface: rgba(15, 23, 42, 0.65);
+    --app-border: rgba(51, 65, 85, 0.5);
+    --app-text: #f8fafc;
+    --app-muted: #94a3b8;
+    --app-accent-1: #06b6d4;
+    --app-accent-2: #a855f7;
+    --app-highlight: rgba(6, 182, 212, 0.3);
+    --app-active-word-bg: #06b6d4;
+    --app-active-word-text: #041019;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Lexend', sans-serif;
+    background-color: var(--app-bg);
+    color: var(--app-text);
+    transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  /* Accessibility focus ring */
+  *:focus-visible {
+    outline: 2px solid var(--app-accent-1);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+/* Theme classes */
+.theme-aurora {
+  --app-bg: #0b0f19;
+  --app-surface: rgba(15, 23, 42, 0.75);
+  --app-surface-card: rgba(30, 41, 59, 0.6);
+  --app-border: rgba(71, 85, 105, 0.4);
+  --app-text: #f8fafc;
+  --app-muted: #94a3b8;
+  --app-accent-1: #06b6d4;
+  --app-accent-2: #a855f7;
+  --app-highlight: rgba(6, 182, 212, 0.25);
+  --app-active-word-bg: #06b6d4;
+  --app-active-word-text: #021721;
+}
+
+.theme-mint {
+  --app-bg: #f4f8f6;
+  --app-surface: rgba(255, 255, 255, 0.92);
+  --app-surface-card: #ffffff;
+  --app-border: #cbd5e1;
+  --app-text: #0f172a;
+  --app-muted: #475569;
+  --app-accent-1: #0d9488;
+  --app-accent-2: #0284c7;
+  --app-highlight: #d9f2c7;
+  --app-active-word-bg: #0d9488;
+  --app-active-word-text: #ffffff;
+}
+
+.theme-sunset {
+  --app-bg: #1e1028;
+  --app-surface: rgba(42, 23, 56, 0.85);
+  --app-surface-card: rgba(58, 30, 80, 0.65);
+  --app-border: rgba(147, 51, 234, 0.35);
+  --app-text: #fdf4ff;
+  --app-muted: #d8b4fe;
+  --app-accent-1: #f43f5e;
+  --app-accent-2: #f59e0b;
+  --app-highlight: rgba(245, 158, 11, 0.35);
+  --app-active-word-bg: #f59e0b;
+  --app-active-word-text: #210d02;
+}
+
+/* Custom scrollbars designed to avoid distraction */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: var(--app-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--app-border);
+}
+
+.glass-card {
+  background: var(--app-surface-card, var(--app-surface));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--app-border);
+}
+
+/* Reading container constraints */
+.reader-container {
+  max-width: 68ch;
+  text-align: left !important;
+}
+
+/* Bionic reading letter emphasis */
+.bionic-prefix {
+  font-weight: 800;
+  color: inherit;
+  filter: saturate(1.1);
+}
+
+.bionic-suffix {
+  font-weight: 400;
+  opacity: 0.88;
+}
+
+/* Annotation highlighters */
+.hl-yellow { background-color: rgba(254, 240, 138, 0.45); border-bottom: 2px solid #eab308; }
+.hl-cyan { background-color: rgba(165, 243, 252, 0.45); border-bottom: 2px solid #06b6d4; }
+.hl-pink { background-color: rgba(251, 207, 232, 0.45); border-bottom: 2px solid #ec4899; }
+.hl-green { background-color: rgba(187, 247, 208, 0.45); border-bottom: 2px solid #22c55e; }
+.hl-purple { background-color: rgba(233, 213, 255, 0.45); border-bottom: 2px solid #a855f7; }
+
+/* In dark themes adjust highlight text contrast */
+.theme-aurora .hl-yellow, .theme-sunset .hl-yellow { color: #fef9c3; }
+.theme-aurora .hl-cyan, .theme-sunset .hl-cyan { color: #cffafe; }
+.theme-aurora .hl-pink, .theme-sunset .hl-pink { color: #fce7f3; }
+.theme-aurora .hl-green, .theme-sunset .hl-green { color: #dcfce7; }
+.theme-aurora .hl-purple, .theme-sunset .hl-purple { color: #f3e8ff; }
+
+/* Interactive word item */
+.reader-word {
+  display: inline-block;
+  cursor: pointer;
+  position: relative;
+  border-radius: 4px;
+  padding: 1px 3px;
+  margin: 1px 1px;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+  user-select: text;
+}
+
+.reader-word:hover {
+  background-color: var(--app-highlight);
+  transform: translateY(-1px);
+}
+
+.reader-word.active-word {
+  background-color: var(--app-active-word-bg);
+  color: var(--app-active-word-text) !important;
+  font-weight: 700;
+  box-shadow: 0 0 16px var(--app-active-word-bg);
+  border-radius: 6px;
+  transform: scale(1.04);
+  z-index: 2;
+}
+
+.reader-word.active-word * {
+  color: var(--app-active-word-text) !important;
+}
+
+/* Reduced motion overrides */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
