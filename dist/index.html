@@ -19,19 +19,33 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic.css" />
 
     <title>Dyslexia Assistant — Effortless, Confident Reading</title>
-    <script type="module" crossorigin src="/assets/index-BIT4ejam.js"></script>
+    <script type="module" crossorigin src="/assets/index-Bw3F_Pbj.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-C3f9qenD.css">
   </head>
   <body class="antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
     <div id="root"></div>
     <script>
-      // Service worker registration
-      if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch((err) => {
-            console.warn('Service worker registration failed:', err);
+      // Service worker management
+      if ('serviceWorker' in navigator) {
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          // Avoid stale cache on localhost dev
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            for (const reg of registrations) {
+              reg.unregister();
+            }
           });
-        });
+          if ('caches' in window) {
+            caches.keys().then((names) => {
+              for (const name of names) caches.delete(name);
+            });
+          }
+        } else if (window.location.protocol.startsWith('http')) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').catch((err) => {
+              console.warn('Service worker registration failed:', err);
+            });
+          });
+        }
       }
     </script>
   </body>

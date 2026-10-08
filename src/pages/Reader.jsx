@@ -35,9 +35,9 @@ export function Reader({
   onRecordSession,
   reducedMotion = false
 }) {
-  // Reading content state
-  const [currentText, setCurrentText] = useState(SAMPLE_PASSAGES[0].text);
-  const [documentTitle, setDocumentTitle] = useState(SAMPLE_PASSAGES[0].title);
+  // Reading content state with resilient initializers
+  const [currentText, setCurrentText] = useState(() => (SAMPLE_PASSAGES && SAMPLE_PASSAGES[0] ? SAMPLE_PASSAGES[0].text : ''));
+  const [documentTitle, setDocumentTitle] = useState(() => (SAMPLE_PASSAGES && SAMPLE_PASSAGES[0] ? SAMPLE_PASSAGES[0].title : 'Oceanic Bioluminescence'));
   const [customInputOpen, setCustomInputOpen] = useState(false);
   const [inputTextVal, setInputTextVal] = useState('');
   const [inputTitleVal, setInputTitleVal] = useState('');
@@ -860,11 +860,26 @@ export function Reader({
                 wordSpacing: `${wordSpacing}em`,
               }}
             >
-              {tokens.map((token) => {
-                const isActive = currentWordIndex === token.index;
-                const highlight = annotations.find(a => a.wordIndex === token.index && a.type === 'highlight');
-                const note = annotations.find(a => a.wordIndex === token.index && a.type === 'note');
-                const bookmark = annotations.find(a => a.wordIndex === token.index && a.type === 'bookmark');
+              {tokens.length === 0 ? (
+                <div className="text-center py-16 px-4 glass-card rounded-2xl border border-slate-700/40 text-slate-400 space-y-4">
+                  <FileText className="w-12 h-12 text-cyan-400/60 mx-auto" />
+                  <div className="text-base font-semibold text-slate-200">No reading passage loaded</div>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                    Choose one of the curated passages or paste your own document to begin reading.
+                  </p>
+                  <button
+                    onClick={() => SAMPLE_PASSAGES && SAMPLE_PASSAGES[0] && handleLoadSample(SAMPLE_PASSAGES[0])}
+                    className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs"
+                  >
+                    Load Sample Passage
+                  </button>
+                </div>
+              ) : (
+                tokens.map((token) => {
+                  const isActive = currentWordIndex === token.index;
+                  const highlight = annotations.find(a => a.wordIndex === token.index && a.type === 'highlight');
+                  const note = annotations.find(a => a.wordIndex === token.index && a.type === 'note');
+                  const bookmark = annotations.find(a => a.wordIndex === token.index && a.type === 'bookmark');
 
                 // Single Sentence Mode dimming
                 const isDimmed = singleSentenceMode && activeSentenceIndex >= 0 && token.sentenceIndex !== activeSentenceIndex;
@@ -923,7 +938,7 @@ export function Reader({
                     )}
                   </span>
                 );
-              })}
+              }))}
             </div>
           </div>
 

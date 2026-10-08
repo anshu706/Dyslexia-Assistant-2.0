@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Palette, Check, Sun, Moon, Flame } from 'lucide-react';
 
-export const THEMES = [
+const THEMES = [
   {
     id: 'theme-aurora',
     name: 'Aurora',

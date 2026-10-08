@@ -53,10 +53,17 @@ export default function App() {
     }
   }, []);
 
+  // Ensure complete defaults are always applied even if stored schema had missing keys
+  const effectiveSettings = {
+    ...DEFAULT_SETTINGS,
+    ...(readerSettings && typeof readerSettings === 'object' ? readerSettings : {}),
+  };
+
   // Update specific reader settings cleanly
   const updateReaderSettings = (newValues) => {
     setReaderSettings((prev) => ({
-      ...prev,
+      ...DEFAULT_SETTINGS,
+      ...(prev || {}),
       ...newValues,
     }));
   };
@@ -166,7 +173,7 @@ export default function App() {
               transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
             >
               <Reader
-                readerSettings={readerSettings}
+                readerSettings={effectiveSettings}
                 updateReaderSettings={updateReaderSettings}
                 onRecordSession={handleRecordSession}
                 reducedMotion={prefersReducedMotion}
@@ -200,7 +207,7 @@ export default function App() {
               transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
             >
               <Settings
-                settings={readerSettings}
+                settings={effectiveSettings}
                 updateSettings={updateReaderSettings}
                 currentTheme={theme}
                 setCurrentTheme={setTheme}
