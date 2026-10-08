@@ -8,6 +8,7 @@ import { Reader } from './pages/Reader';
 import { Stats } from './pages/Stats';
 import { Settings } from './pages/Settings';
 import { Help } from './pages/Help';
+import { Footer } from './components/Footer';
 
 const DEFAULT_SETTINGS = {
   fontFamily: 'lexend',
@@ -15,6 +16,7 @@ const DEFAULT_SETTINGS = {
   lineHeight: 2.0,
   letterSpacing: 0.04,
   wordSpacing: 0.16,
+  columnWidth: 68, // characters
   bionicReading: true,
   focusRulerEnabled: false,
   focusRulerHeight: 72,
@@ -66,9 +68,7 @@ export default function App() {
 
   // Clear session history
   const handleClearSessions = () => {
-    if (window.confirm('Are you sure you want to reset your reading session history?')) {
-      setSessions([]);
-    }
+    setSessions([]);
   };
 
   // Apply theme class to document element
@@ -76,6 +76,11 @@ export default function App() {
     document.documentElement.className = theme;
     document.body.className = `${theme} antialiased selection:bg-cyan-500/30 selection:text-cyan-200`;
   }, [theme]);
+
+  // Scroll to top smoothly when changing views
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab]);
 
   // Global keyboard shortcuts (B = toggle bionic, R = toggle ruler)
   useEffect(() => {
@@ -219,6 +224,13 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Modern SaaS Footer */}
+      <Footer
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        reducedMotion={prefersReducedMotion}
+      />
     </div>
   );
 }

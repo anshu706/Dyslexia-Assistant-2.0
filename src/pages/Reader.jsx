@@ -75,6 +75,7 @@ export function Reader({
     lineHeight = 2.0,
     letterSpacing = 0.04, // em
     wordSpacing = 0.16, // em
+    columnWidth = 68, // characters
     bionicReading = true,
     focusRulerEnabled = false,
     focusRulerHeight = 72,
@@ -88,6 +89,9 @@ export function Reader({
   // Annotations state: highlights, notes, bookmarks
   const [annotations, setAnnotations] = useState([]);
   const [selectedHighlightColor, setSelectedHighlightColor] = useState('yellow');
+  const [highlightMode, setHighlightMode] = useState(false);
+  const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerTab, setDrawerTab] = useState('notes'); // 'notes' | 'tools'
   const [activeWordNote, setActiveWordNote] = useState(null); // { index, word }
@@ -140,10 +144,18 @@ export function Reader({
     }
   });
 
-  // Keep rate / voice in sync with settings
+  // Keep rate / pitch / volume / voice in sync with settings
   useEffect(() => {
     setRate(speechRate);
   }, [speechRate, setRate]);
+
+  useEffect(() => {
+    setPitch(speechPitch);
+  }, [speechPitch, setPitch]);
+
+  useEffect(() => {
+    setVolume(speechVolume);
+  }, [speechVolume, setVolume]);
 
   useEffect(() => {
     if (voiceURI && voices.length > 0) {
@@ -184,6 +196,83 @@ export function Reader({
   const handleStop = () => {
     recordSessionData();
     stop();
+  };
+
+  // Keyboard Navigation: Space = Play/Pause, Esc = Stop, Left/Right = Skip Word, Up/Down = Adjust Rate
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+      if (customInputOpen || activeWordNote) return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handlePlayToggle();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleStop();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const prevIdx = Math.max(0, (currentWordIndex >= 0 ? currentWordIndex : 0) - 1);
+        jumpToWord(prevIdx);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const nextIdx = Math.min(tokens.length - 1, (currentWordIndex >= 0 ? currentWordIndex : -1) + 1);
+        jumpToWord(nextIdx);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const nextRate = Math.min(2.5, +(rate + 0.1).toFixed(1));
+        setRate(nextRate);
+        updateReaderSettings({ speechRate: nextRate });
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const prevRate = Math.max(0.5, +(rate - 0.1).toFixed(1));
+        setRate(prevRate);
+        updateReaderSettings({ speechRate: prevRate });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    isPlaying,
+    isPaused,
+    currentWordIndex,
+    tokens.length,
+    rate,
+    customInputOpen,
+    activeWordNote,
+    jumpToWord,
+    setRate,
+    updateReaderSettings,
+  ]);
+
+  // Drag and drop handlers for .txt files
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const content = event.target?.result;
+        if (typeof content === 'string' && content.trim()) {
+          handleStop();
+          setCurrentText(content.trim());
+          setDocumentTitle(file.name.replace(/\.[^/.]+$/, ''));
+        }
+      };
+      reader.readAsText(file);
+    }
   };
 
   // Switch to one of the pre-loaded sample passages
@@ -542,6 +631,97 @@ export function Reader({
               />
             </div>
 
+            {/* Audio Tuning Popover (Volume & Pitch) */}
+            <div className="relative">
+              <button
+                onClick={() => setAudioSettingsOpen(!audioSettingsOpen)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                  audioSettingsOpen
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50'
+                    : 'glass-card border border-slate-700/60 text-slate-300 hover:text-white'
+                }`}
+                title="Adjust speech volume and voice pitch"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Audio Tuning</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
+
+              <AnimatePresence>
+                {audioSettingsOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-30"
+                      onClick={() => setAudioSettingsOpen(false)}
+                      aria-hidden="true"
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      className="absolute left-0 mt-2 w-64 rounded-2xl glass-panel p-4 z-40 shadow-2xl border border-slate-700/70 space-y-3.5"
+                    >
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+                        <span className="text-xs font-bold text-white uppercase tracking-wider">
+                          Sound Diagnostics & Tuning
+                        </span>
+                        <button
+                          onClick={() => setAudioSettingsOpen(false)}
+                          className="text-slate-400 hover:text-white p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-slate-300">
+                          <span>Volume</span>
+                          <span className="font-semibold text-cyan-300">{Math.round(volume * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          value={volume}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setVolume(val);
+                            updateReaderSettings({ speechVolume: val });
+                          }}
+                          className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-slate-700 rounded-lg"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-slate-300">
+                          <span>Voice Pitch</span>
+                          <span className="font-semibold text-cyan-300">{pitch.toFixed(1)}x</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="1.5"
+                          step="0.1"
+                          value={pitch}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setPitch(val);
+                            updateReaderSettings({ speechPitch: val });
+                          }}
+                          className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-slate-700 rounded-lg"
+                        />
+                      </div>
+
+                      <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-800">
+                        {boundarySupported ? '✓ Native boundary tracking active' : '⚡ Predictive WPM fallback active'}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* Device Voice Selector Dropdown */}
             <div className="flex items-center space-x-2 max-w-xs">
               <Volume2 className="w-4 h-4 text-cyan-400 flex-shrink-0" />
@@ -617,34 +797,73 @@ export function Reader({
           {/* Main Reading Canvas */}
           <div
             ref={readerContainerRef}
-            className={`glass-panel p-6 sm:p-10 rounded-3xl border border-slate-700/40 shadow-2xl transition-all ${
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`glass-panel p-6 sm:p-10 rounded-3xl border border-slate-700/40 shadow-2xl transition-all relative overflow-hidden ${
               drawerOpen ? 'lg:col-span-8' : 'lg:col-span-12'
             }`}
           >
-            {/* Highlighter Color Palette Bar */}
+            {/* Drag and Drop File Dropzone Overlay */}
+            <AnimatePresence>
+              {isDraggingOver && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-30 rounded-3xl bg-slate-950/85 backdrop-blur-md border-2 border-dashed border-cyan-400 flex flex-col items-center justify-center space-y-3 pointer-events-none"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300">
+                    <Upload className="w-8 h-8 stroke-[2.3] animate-bounce" />
+                  </div>
+                  <p className="text-lg font-bold text-white">Drop .txt file to load into Reader</p>
+                  <p className="text-xs text-slate-400">Instantly tokenized with synchronized speech</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Highlighter Color Palette Bar & Quick Mode Toggle */}
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-700/30">
-              <div className="flex items-center space-x-2">
-                <Highlighter className="w-4 h-4 text-slate-400" />
-                <span className="text-xs text-slate-400 font-medium">Highlight color:</span>
-                <div className="flex items-center space-x-1.5">
-                  {highlightColors.map((color) => (
-                    <button
-                      key={color.id}
-                      onClick={() => setSelectedHighlightColor(color.id)}
-                      className={`w-6 h-6 rounded-full border-2 transition-transform ${
-                        selectedHighlightColor === color.id
-                          ? 'scale-110 border-white shadow-md'
-                          : 'border-transparent opacity-75 hover:opacity-100'
-                      }`}
-                      style={{ backgroundColor: color.hex }}
-                      title={color.label}
-                    />
-                  ))}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center space-x-2">
+                  <Highlighter className="w-4 h-4 text-slate-400" />
+                  <span className="text-xs text-slate-400 font-medium">Highlight shade:</span>
+                  <div className="flex items-center space-x-1.5">
+                    {highlightColors.map((color) => (
+                      <button
+                        key={color.id}
+                        onClick={() => setSelectedHighlightColor(color.id)}
+                        className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                          selectedHighlightColor === color.id
+                            ? 'scale-110 border-white shadow-md'
+                            : 'border-transparent opacity-75 hover:opacity-100'
+                        }`}
+                        style={{ backgroundColor: color.hex }}
+                        title={color.label}
+                      />
+                    ))}
+                  </div>
                 </div>
+
+                {/* Highlight Click Tool Toggle */}
+                <button
+                  onClick={() => setHighlightMode(!highlightMode)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                    highlightMode
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-400/50 shadow-sm'
+                      : 'glass-card border border-slate-700/60 text-slate-400 hover:text-slate-200'
+                  }`}
+                  title={highlightMode ? 'Click any word to toggle highlight' : 'Click words to jump audio voice'}
+                >
+                  <Highlighter className="w-3.5 h-3.5" />
+                  <span>Highlight Tool {highlightMode ? 'ON' : 'OFF'}</span>
+                </button>
               </div>
 
-              <div className="text-xs text-slate-400">
-                Font: <span className="capitalize text-slate-200 font-semibold">{fontFamily}</span> • {fontSize}px
+              <div className="text-xs text-slate-400 flex items-center space-x-2">
+                <span>Font: <strong className="capitalize text-slate-200">{fontFamily}</strong> • {fontSize}px</span>
+                <span className="text-slate-600">|</span>
+                <span>Measure: <strong className="text-slate-200">{columnWidth}ch</strong></span>
               </div>
             </div>
 
@@ -652,6 +871,7 @@ export function Reader({
             <div
               className="reader-container mx-auto"
               style={{
+                maxWidth: `${columnWidth || 68}ch`,
                 fontFamily:
                   fontFamily === 'atkinson'
                     ? '"Atkinson Hyperlegible", sans-serif'
@@ -684,25 +904,46 @@ export function Reader({
                   <span
                     key={`${token.index}-${token.word}`}
                     data-word-index={token.index}
-                    onClick={() => jumpToWord(token.index)}
+                    onClick={() => {
+                      if (highlightMode) {
+                        handleAddHighlight(token.index, token.word);
+                      } else {
+                        jumpToWord(token.index);
+                      }
+                    }}
                     onContextMenu={(e) => handleWordRightClick(e, token.index, token.word)}
                     className={`reader-word ${isActive ? 'active-word' : ''} ${highlightClass} ${
                       isDimmed ? 'opacity-20 blur-[0.4px] transition-opacity' : 'opacity-100'
                     }`}
-                    title={note ? `Note: ${note.text}` : 'Click to hear • Right-click to annotate'}
+                    title={note ? `Note: ${note.text}` : highlightMode ? 'Click to highlight word' : 'Click to hear • Right-click to annotate'}
                   >
-                    {renderBionicWord(token.word)}
+                    {/* Word-Gliding Highlight Animated Pill */}
+                    {isActive && (
+                      <motion.span
+                        layoutId="readerActiveWordHighlight"
+                        className="absolute inset-0 rounded-md bg-[var(--app-active-word-bg)] shadow-[0_0_18px_var(--app-active-word-bg)] z-0"
+                        transition={
+                          reducedMotion
+                            ? { duration: 0 }
+                            : { type: 'spring', stiffness: 480, damping: 32, mass: 0.6 }
+                        }
+                      />
+                    )}
+
+                    <span className="relative z-10">
+                      {renderBionicWord(token.word)}
+                    </span>
 
                     {/* Bookmark indicator tag */}
                     {bookmark && (
-                      <span className="inline-block ml-0.5 text-amber-400 align-super text-[10px]">
+                      <span className="relative z-10 inline-block ml-0.5 text-amber-400 align-super text-[10px]">
                         ★
                       </span>
                     )}
 
                     {/* Note indicator tag */}
                     {note && (
-                      <span className="inline-block ml-0.5 text-cyan-400 align-super text-[10px]">
+                      <span className="relative z-10 inline-block ml-0.5 text-cyan-400 align-super text-[10px]">
                         💬
                       </span>
                     )}
@@ -932,6 +1173,26 @@ export function Reader({
                       />
                     </div>
 
+                    {/* Column Width / Reading Measure Constraint */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-slate-300">
+                        <span>Column Measure (Line Length)</span>
+                        <span className="font-semibold text-cyan-300">{columnWidth}ch</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="45"
+                        max="80"
+                        step="1"
+                        value={columnWidth}
+                        onChange={(e) => updateReaderSettings({ columnWidth: parseInt(e.target.value) })}
+                        className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-slate-700 rounded-lg"
+                      />
+                      <div className="text-[10px] text-slate-500">
+                        Cognitive optimum: 60–70 characters for minimal eye saccade strain
+                      </div>
+                    </div>
+
                     {/* Focus Ruler Height */}
                     {focusRulerEnabled && (
                       <div className="space-y-1 pt-2 border-t border-slate-700/40">
@@ -992,19 +1253,32 @@ export function Reader({
                 autoFocus
               />
 
-              <div className="flex items-center justify-end space-x-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                 <button
-                  onClick={() => setActiveWordNote(null)}
-                  className="px-4 py-2 rounded-xl glass-card text-xs font-semibold text-slate-300 hover:text-white"
+                  type="button"
+                  onClick={() => {
+                    handleAddHighlight(activeWordNote.index, activeWordNote.word);
+                  }}
+                  className="flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-semibold glass-card border border-slate-700/60 hover:border-amber-400/50 text-slate-300 hover:text-amber-300 transition-colors"
                 >
-                  Cancel
+                  <Highlighter className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Toggle Highlight</span>
                 </button>
-                <button
-                  onClick={handleSaveNote}
-                  className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs"
-                >
-                  Save Note
-                </button>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setActiveWordNote(null)}
+                    className="px-4 py-2 rounded-xl glass-card text-xs font-semibold text-slate-300 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveNote}
+                    className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-md shadow-cyan-500/20"
+                  >
+                    Save Note
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

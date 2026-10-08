@@ -15,6 +15,7 @@ import {
   Zap,
   Info
 } from 'lucide-react';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 export function Settings({
   settings,
@@ -38,6 +39,7 @@ export function Settings({
           lineHeight: 2.2,
           letterSpacing: 0.05,
           wordSpacing: 0.2,
+          columnWidth: 64,
           bionicReading: false,
           focusRulerEnabled: true,
           focusRulerHeight: 80,
@@ -53,6 +55,7 @@ export function Settings({
           lineHeight: 2.1,
           letterSpacing: 0.06,
           wordSpacing: 0.22,
+          columnWidth: 68,
           bionicReading: true,
           focusRulerEnabled: false,
           singleSentenceMode: false,
@@ -67,6 +70,7 @@ export function Settings({
           lineHeight: 2.0,
           letterSpacing: 0.04,
           wordSpacing: 0.18,
+          columnWidth: 70,
           bionicReading: true,
           focusRulerEnabled: true,
           focusRulerHeight: 72,
@@ -212,6 +216,20 @@ export function Settings({
         </div>
       </div>
 
+      {/* Cognitive Theme Cards Selector */}
+      <div className="mb-10">
+        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center space-x-2">
+          <Palette className="w-4 h-4 text-cyan-400" />
+          <span>Cognitive Themes (500ms Cross-Fade & Ambient Orbs)</span>
+        </div>
+        <ThemeToggle
+          currentTheme={currentTheme}
+          setCurrentTheme={setCurrentTheme}
+          reducedMotion={reducedMotion}
+          variant="cards"
+        />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Sliders & Controls Column */}
         <div className="lg:col-span-6 space-y-6">
@@ -314,6 +332,26 @@ export function Settings({
                 className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-slate-700 rounded-lg"
               />
             </div>
+
+            {/* Column Width Slider */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-slate-300">
+                <span>Column Measure (Line Length Constraint)</span>
+                <span className="font-semibold text-cyan-300">{settings.columnWidth || 68}ch</span>
+              </div>
+              <input
+                type="range"
+                min="45"
+                max="80"
+                step="1"
+                value={settings.columnWidth || 68}
+                onChange={(e) => updateSettings({ columnWidth: parseInt(e.target.value) })}
+                className="w-full accent-cyan-400 cursor-pointer h-1.5 bg-slate-700 rounded-lg"
+              />
+              <div className="text-[10px] text-slate-400">
+                Constrains text measure to 60–70 characters for optimal line tracking.
+              </div>
+            </div>
           </div>
 
           {/* Accessibility & Motion Toggles */}
@@ -409,8 +447,9 @@ export function Settings({
 
             {/* Rendered Sandbox Box */}
             <div
-              className="p-6 rounded-2xl glass-card border border-slate-700/40 min-h-[220px] transition-all"
+              className="p-6 rounded-2xl glass-card border border-slate-700/40 min-h-[220px] transition-all mx-auto"
               style={{
+                maxWidth: `${settings.columnWidth || 68}ch`,
                 fontFamily:
                   settings.fontFamily === 'atkinson'
                     ? '"Atkinson Hyperlegible", sans-serif'

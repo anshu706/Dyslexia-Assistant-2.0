@@ -12,8 +12,39 @@ import {
   TrendingUp,
   ChevronRight,
   Sparkles,
-  Zap
+  Zap,
+  AlertTriangle,
+  X
 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+
+function AnimatedNumber({ value, duration = 800 }) {
+  const [display, setDisplay] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const end = parseInt(value, 10) || 0;
+    if (end === 0) {
+      setDisplay(0);
+      return;
+    }
+    const startTime = performance.now();
+
+    const update = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // easeOutExpo
+      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      setDisplay(Math.round(ease * end));
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      }
+    };
+    requestAnimationFrame(update);
+  }, [value, duration]);
+
+  return <>{display.toLocaleString()}</>;
+}
 
 export function Stats({
   sessions = [],
@@ -22,6 +53,7 @@ export function Stats({
   reducedMotion = false
 }) {
   const [selectedDay, setSelectedDay] = useState(null);
+  const [resetModalOpen, setResetModalOpen] = useState(false);
 
   // Compute metrics
   const totalWords = useMemo(() => {
@@ -126,7 +158,7 @@ export function Stats({
               </button>
 
               <button
-                onClick={onClearSessions}
+                onClick={() => setResetModalOpen(true)}
                 className="px-3.5 py-2 rounded-xl glass-card border border-slate-700/60 hover:border-rose-400/50 text-xs font-semibold text-slate-400 hover:text-rose-300 flex items-center space-x-1.5 transition-all shadow-sm"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -155,7 +187,7 @@ export function Stats({
             </div>
           </div>
           <div className="mt-4 text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            {totalWords.toLocaleString()}
+            <AnimatedNumber value={totalWords} />
           </div>
           <div className="mt-2 text-xs text-cyan-300 flex items-center space-x-1">
             <Sparkles className="w-3.5 h-3.5" />
@@ -182,7 +214,7 @@ export function Stats({
             {totalHours} <span className="text-xl text-slate-400 font-semibold">hrs</span>
           </div>
           <div className="mt-2 text-xs text-violet-300">
-            {totalMinutes} active minutes of audio-visual focus
+            <AnimatedNumber value={totalMinutes} /> active minutes of audio-visual focus
           </div>
         </motion.div>
 
@@ -202,7 +234,7 @@ export function Stats({
             </div>
           </div>
           <div className="mt-4 text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-            {completedReadings}
+            <AnimatedNumber value={completedReadings} />
           </div>
           <div className="mt-2 text-xs text-teal-300">
             Passages read to completion
@@ -225,7 +257,7 @@ export function Stats({
             </div>
           </div>
           <div className="mt-4 text-3xl sm:text-4xl font-extrabold text-white tracking-tight flex items-baseline space-x-2">
-            <span>{streakDays}</span>
+            <span><AnimatedNumber value={streakDays} /></span>
             <span className="text-xl text-amber-400 font-semibold">{streakDays === 1 ? 'Day' : 'Days'}</span>
           </div>
           <div className="mt-2 text-xs text-amber-300">
@@ -379,6 +411,52 @@ export function Stats({
           </div>
         )}
       </div>
+
+      {/* Reset Confirmation Modal */}
+      <AnimatePresence>
+        {resetModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-panel p-6 sm:p-8 rounded-3xl border border-rose-500/40 max-w-md w-full shadow-2xl space-y-5"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-400/40 flex items-center justify-center text-rose-400 flex-shrink-0">
+                  <AlertTriangle className="w-6 h-6 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Reset Analytics History?</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">This action cannot be undone.</p>
+                </div>
+              </div>
+
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                Permanently deletes all recorded reading sessions, daily streaks, time telemetry, and weekly volume metrics saved in local storage.
+              </p>
+
+              <div className="flex items-center justify-end space-x-2 pt-2">
+                <button
+                  onClick={() => setResetModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl glass-card text-xs font-semibold text-slate-300 hover:text-white"
+                >
+                  Keep Data
+                </button>
+                <button
+                  onClick={() => {
+                    setResetModalOpen(false);
+                    if (onClearSessions) onClearSessions();
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 transition-colors"
+                >
+                  Yes, Reset Everything
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

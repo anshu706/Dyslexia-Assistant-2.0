@@ -11,15 +11,8 @@ import {
   Menu,
   X,
   Download,
-  Palette,
-  Check
 } from 'lucide-react';
-
-export const THEMES = [
-  { id: 'theme-aurora', name: 'Aurora', subtitle: 'Dark Glassmorphism', icon: '🌌', accent: '#06b6d4' },
-  { id: 'theme-mint', name: 'Calm Mint', subtitle: 'Low-Stimulation Light', icon: '🌿', accent: '#0d9488' },
-  { id: 'theme-sunset', name: 'Sunset Glow', subtitle: 'Warm High-Contrast', icon: '🌅', accent: '#f59e0b' },
-];
+import { ThemeToggle } from './ThemeToggle';
 
 export function Navigation({
   activeTab,
@@ -30,7 +23,6 @@ export function Navigation({
   reducedMotion = false,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
 
@@ -71,8 +63,6 @@ export function Navigation({
     { id: 'settings', label: 'Studio', icon: Sliders },
     { id: 'help', label: 'Shortcuts & FAQ', icon: HelpCircle },
   ];
-
-  const currentThemeObj = THEMES.find(t => t.id === currentTheme) || THEMES[0];
 
   return (
     <header className="sticky top-0 z-40 w-full glass-panel border-b border-slate-700/30 transition-colors duration-500">
@@ -137,66 +127,13 @@ export function Navigation({
 
           {/* Right Controls: Theme Switcher & Actions */}
           <div className="flex items-center space-x-3">
-            {/* Quick Theme Switcher Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setThemeDropdownOpen(!themeDropdownOpen)}
-                className="flex items-center space-x-2 px-3 py-1.5 rounded-xl glass-card border border-slate-700/40 hover:border-cyan-500/40 text-xs font-medium text-slate-300 hover:text-white transition-all shadow-sm"
-                title="Change Visual Theme"
-                aria-label="Theme selector"
-              >
-                <span className="text-base">{currentThemeObj.icon}</span>
-                <span className="hidden sm:inline">{currentThemeObj.name}</span>
-                <Palette className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <AnimatePresence>
-                {themeDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setThemeDropdownOpen(false)}
-                    />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.96 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.96 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-56 rounded-2xl glass-panel p-2 z-50 shadow-2xl border border-slate-700/60"
-                    >
-                      <div className="px-2 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                        Select Theme
-                      </div>
-                      {THEMES.map((th) => (
-                        <button
-                          key={th.id}
-                          onClick={() => {
-                            setCurrentTheme(th.id);
-                            setThemeDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition-all my-0.5 ${
-                            currentTheme === th.id
-                              ? 'bg-cyan-500/15 text-cyan-200 border border-cyan-500/30 font-semibold'
-                              : 'text-slate-300 hover:bg-white/5'
-                          }`}
-                        >
-                          <div className="flex items-center space-x-2.5">
-                            <span className="text-base">{th.icon}</span>
-                            <div>
-                              <div className="font-medium text-slate-200">{th.name}</div>
-                              <div className="text-[10px] text-slate-400">{th.subtitle}</div>
-                            </div>
-                          </div>
-                          {currentTheme === th.id && (
-                            <Check className="w-4 h-4 text-cyan-400" />
-                          )}
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* Quick Theme Switcher Component */}
+            <ThemeToggle
+              currentTheme={currentTheme}
+              setCurrentTheme={setCurrentTheme}
+              reducedMotion={reducedMotion}
+              variant="compact"
+            />
 
             {/* PWA Install Button */}
             {deferredPrompt && (
