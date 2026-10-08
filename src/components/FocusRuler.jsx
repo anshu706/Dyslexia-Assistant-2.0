@@ -39,15 +39,18 @@ export function FocusRuler({
       }
     };
 
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
-    window.addEventListener('touchmove', (e) => {
+    const handleTouchMove = (e) => {
       if (e.touches && e.touches[0]) {
         handlePointerMove(e.touches[0]);
       }
-    }, { passive: true });
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
 
     return () => {
       window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('touchmove', handleTouchMove);
     };
   }, [enabled, containerRef]);
 

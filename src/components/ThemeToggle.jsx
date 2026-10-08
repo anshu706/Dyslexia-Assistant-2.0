@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Palette, Check, Sun, Moon, Sunset } from 'lucide-react';
+import { Palette, Check, Sun, Moon, Flame } from 'lucide-react';
 
 export const THEMES = [
   {
@@ -32,7 +32,7 @@ export const THEMES = [
     name: 'Sunset Glow',
     subtitle: 'Warm High-Contrast',
     icon: '🌅',
-    lucideIcon: Sunset,
+    lucideIcon: Flame,
     accent: '#f59e0b',
     bgPreview: '#1e1028',
     cardPreview: 'rgba(42, 23, 56, 0.85)',

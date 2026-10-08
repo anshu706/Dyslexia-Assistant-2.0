@@ -2,14 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * Utility to split text into structured word tokens with character index positions.
- * @param {string} text 
+ * @param {string} text
  * @returns {Array<{ index: number, word: string, cleanWord: string, charStart: number, charEnd: number, sentenceIndex: number }>}
  */
 export function tokenizeText(text) {
   if (!text || typeof text !== 'string') return [];
 
   const tokens = [];
-  // Regex to match words along with adjacent punctuation
   const wordRegex = /\S+/g;
   let match;
   let wordIndex = 0;
@@ -19,7 +18,6 @@ export function tokenizeText(text) {
     const word = match[0];
     const charStart = match.index;
     const charEnd = charStart + word.length;
-    // Strip punctuation for clean phonetic matching
     const cleanWord = word.replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF]/g, '').trim();
 
     tokens.push({
@@ -31,8 +29,7 @@ export function tokenizeText(text) {
       sentenceIndex: currentSentence,
     });
 
-    // Check sentence boundary
-    if (/[.!?][)'"”’]?$/.test(word)) {
+    if (/[.!?][)'"\u201D]?$/.test(word)) {
       currentSentence++;
     }
 
@@ -60,26 +57,42 @@ export function useSpeech({
   const [rate, setRate] = useState(initialRate);
   const [pitch, setPitch] = useState(initialPitch);
   const [volume, setVolume] = useState(initialVolume);
-  
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [boundarySupported, setBoundarySupported] = useState(false);
 
-  // Tokenized representations
-  const tokensRef = useRef([]);
+  // Reactive token state so consumers re-render when text changes
+  const [tokens, setTokens] = useState(() => tokenizeText(text));
+
+  // Refs for values needed inside speech callbacks (avoids stale closures)
+  const tokensRef = useRef(tokens);
+  const rateRef = useRef(rate);
+  const pitchRef = useRef(pitch);
+  const volumeRef = useRef(volume);
+  const selectedVoiceRef = useRef(selectedVoice);
   const utteranceRef = useRef(null);
   const startIndexRef = useRef(0);
   const boundaryFiredRef = useRef(false);
   const fallbackTimerRef = useRef(null);
   const currentSubIndexRef = useRef(0);
+  const voicesLoadedRef = useRef(false);
 
-  // Keep tokens updated
+  // Keep refs in sync with state
+  useEffect(() => { rateRef.current = rate; }, [rate]);
+  useEffect(() => { pitchRef.current = pitch; }, [pitch]);
+  useEffect(() => { volumeRef.current = volume; }, [volume]);
+  useEffect(() => { selectedVoiceRef.current = selectedVoice; }, [selectedVoice]);
+
+  // Re-tokenize when text changes
   useEffect(() => {
-    tokensRef.current = tokenizeText(text);
+    const newTokens = tokenizeText(text);
+    setTokens(newTokens);
+    tokensRef.current = newTokens;
   }, [text]);
 
-  // Load available system voices
+  // Load available system voices — only runs once, no infinite loop
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
@@ -87,20 +100,28 @@ export function useSpeech({
 
     const loadVoices = () => {
       const availableVoices = synth.getVoices() || [];
+      if (availableVoices.length === 0) return;
+
       setVoices(availableVoices);
 
-      // Select default voice (prefer high quality English or system default)
-      if (availableVoices.length > 0 && !selectedVoice) {
+      // Only auto-select a default voice once
+      if (!voicesLoadedRef.current) {
+        voicesLoadedRef.current = true;
         const preferred =
-          availableVoices.find(v => (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Premium')) && v.lang.startsWith('en')) ||
+          availableVoices.find(v =>
+            (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Premium')) &&
+            v.lang.startsWith('en')
+          ) ||
           availableVoices.find(v => v.lang.startsWith('en')) ||
           availableVoices.find(v => v.default) ||
           availableVoices[0];
-        setSelectedVoice(preferred);
+        setSelectedVoice(preferred || null);
+        selectedVoiceRef.current = preferred || null;
       }
     };
 
     loadVoices();
+
     if (synth.onvoiceschanged !== undefined) {
       synth.onvoiceschanged = loadVoices;
     }
@@ -110,7 +131,7 @@ export function useSpeech({
         synth.onvoiceschanged = null;
       }
     };
-  }, [selectedVoice]);
+  }, []); // Empty deps — intentionally run only once
 
   // Clear fallback timer
   const clearFallbackTimer = useCallback(() => {
@@ -141,23 +162,21 @@ export function useSpeech({
     updateActiveWord(globalIndex);
     currentSubIndexRef.current = subIdx;
 
-    // Estimate millisecond duration: base 60ms per char + syllable pause, scaled by speech rate
     const charLen = Math.max(currentToken.cleanWord.length, 2);
-    let estimatedMs = (charLen * 58 + 90) / (rate || 1.0);
+    const currentRate = rateRef.current || 1.0;
+    let estimatedMs = (charLen * 58 + 90) / currentRate;
 
-    // Extra pause on punctuation
     if (/[.!?]$/.test(currentToken.word)) {
-      estimatedMs += 350 / (rate || 1.0);
+      estimatedMs += 350 / currentRate;
     } else if (/[,;:]$/.test(currentToken.word)) {
-      estimatedMs += 180 / (rate || 1.0);
+      estimatedMs += 180 / currentRate;
     }
 
     fallbackTimerRef.current = setTimeout(() => {
-      // If boundary events started firing natively, cease fallback progression
       if (boundaryFiredRef.current) return;
       scheduleFallbackStep(subTokens, subIdx + 1);
     }, estimatedMs);
-  }, [clearFallbackTimer, rate, updateActiveWord]);
+  }, [clearFallbackTimer, updateActiveWord]);
 
   // Clean cancel
   const stop = useCallback(() => {
@@ -172,7 +191,8 @@ export function useSpeech({
   }, [clearFallbackTimer]);
 
   /**
-   * Speak from a specific token index
+   * Speak from a specific token index — reads rate/pitch/volume from refs
+   * so it always uses the latest slider values, not stale closure values.
    */
   const speakFromIndex = useCallback((fromIndex = 0) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -181,7 +201,6 @@ export function useSpeech({
     }
 
     const synth = window.speechSynthesis;
-    // Cancel any ongoing speech
     synth.cancel();
     clearFallbackTimer();
 
@@ -192,7 +211,6 @@ export function useSpeech({
     startIndexRef.current = safeIndex;
     boundaryFiredRef.current = false;
 
-    // Subset of tokens to speak
     const subTokens = allTokens.slice(safeIndex);
     const textToSpeak = subTokens.map(t => t.word).join(' ');
 
@@ -201,10 +219,11 @@ export function useSpeech({
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
     utteranceRef.current = utterance;
 
-    if (selectedVoice) utterance.voice = selectedVoice;
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.volume = volume;
+    // Use refs for latest values — avoids stale closure
+    if (selectedVoiceRef.current) utterance.voice = selectedVoiceRef.current;
+    utterance.rate = rateRef.current;
+    utterance.pitch = pitchRef.current;
+    utterance.volume = volumeRef.current;
 
     // Native boundary event handler
     utterance.onboundary = (event) => {
@@ -213,7 +232,6 @@ export function useSpeech({
         setBoundarySupported(true);
         clearFallbackTimer();
 
-        // Calculate token index from charIndex
         const charIdx = event.charIndex;
         let cumulativeChars = 0;
         let matchedSubIndex = 0;
@@ -224,7 +242,7 @@ export function useSpeech({
             matchedSubIndex = i;
             break;
           }
-          cumulativeChars += tokenLen + 1; // +1 for the space
+          cumulativeChars += tokenLen + 1;
         }
 
         const globalIdx = startIndexRef.current + matchedSubIndex;
@@ -237,7 +255,6 @@ export function useSpeech({
       setIsPaused(false);
       updateActiveWord(startIndexRef.current);
 
-      // Give 250ms for native boundary to fire; if none fires, activate fallback engine
       fallbackTimerRef.current = setTimeout(() => {
         if (!boundaryFiredRef.current) {
           scheduleFallbackStep(subTokens, 0);
@@ -256,7 +273,6 @@ export function useSpeech({
     };
 
     utterance.onerror = (e) => {
-      // 'canceled' or 'interrupted' is expected when jumping
       if (e.error !== 'canceled' && e.error !== 'interrupted') {
         console.warn('[useSpeech] Utterance error:', e.error);
       }
@@ -266,10 +282,10 @@ export function useSpeech({
     };
 
     synth.speak(utterance);
-  }, [clearFallbackTimer, selectedVoice, rate, pitch, volume, updateActiveWord, scheduleFallbackStep, onFinish]);
+  }, [clearFallbackTimer, updateActiveWord, scheduleFallbackStep, onFinish]);
 
   const play = useCallback(() => {
-    if (isPaused && window.speechSynthesis.paused) {
+    if (isPaused && typeof window !== 'undefined' && window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
       setIsPaused(false);
       setIsPlaying(true);
@@ -331,6 +347,6 @@ export function useSpeech({
     resume,
     stop,
     jumpToWord,
-    tokens: tokensRef.current,
+    tokens, // Reactive state — triggers re-renders when text changes
   };
 }

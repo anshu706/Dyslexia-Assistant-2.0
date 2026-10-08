@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play,
@@ -27,33 +27,7 @@ import {
 } from 'lucide-react';
 import { useSpeech, tokenizeText } from '../hooks/useSpeech';
 import { FocusRuler } from '../components/FocusRuler';
-
-export const SAMPLE_PASSAGES = [
-  {
-    id: 'science',
-    title: 'Oceanic Bioluminescence',
-    category: 'Science',
-    text: `Deep beneath the ocean surface, where sunlight never pierces the gloom, creatures create their own living light. This phenomenon is called bioluminescence. Tiny lanternfish flash radiant blue patterns along their bellies to blend with the dim surface glow, while the crystal jellyfish radiates emerald pulses through its transparent dome. Biochemical reactions involving luciferin and oxygen ignite without wasting heat, proving that nature is the most efficient lighting engineer on Earth.`
-  },
-  {
-    id: 'fiction',
-    title: 'The Clockwork Compass',
-    category: 'Fiction',
-    text: `The clockwork compass didn't point toward the magnetic north; it pointed toward wherever you were most afraid to go. Kael tightened his leather straps as the brass needle twitched violently, humming with a frequency that resonated in his teeth. Beneath the ancient cogwheels of Eldoria, steam hissed through rusted valves, and the great bronze gears of the chronometer turned with the slow, deliberate inevitability of forgotten time.`
-  },
-  {
-    id: 'history',
-    title: 'The Library of Alexandria',
-    category: 'History',
-    text: `Over two thousand years ago on the sun-drenched Mediterranean coast, the Great Library of Alexandria attempted something unprecedented: gathering every manuscript, scroll, and translation in the known world under a single vaulted roof. Scholars from Athens, Memphis, and Babylon walked through marble peristyles, cataloging celestial charts and Euclid's geometry. Even as empires rose and crumbled, the thirst to preserve human curiosity burned brighter than the Pharos lighthouse itself.`
-  },
-  {
-    id: 'mindfulness',
-    title: 'The Forest Canopy Breath',
-    category: 'Mindfulness',
-    text: `Take a gentle, quiet breath in through your nose, feeling the cool air fill the upper canopy of your chest. As you breathe out, imagine the tension melting down through your shoulders like morning dew sliding off mossy bark. There is no rush to finish this sentence. Your eyes are free to rest on any word for as long as they need. You are present, steady, and completely capable.`
-  }
-];
+import { SAMPLE_PASSAGES } from '../data/samplePassages';
 
 export function Reader({
   readerSettings,
@@ -68,7 +42,8 @@ export function Reader({
   const [inputTextVal, setInputTextVal] = useState('');
   const [inputTitleVal, setInputTitleVal] = useState('');
 
-  // Reader Enhancement settings
+  // Reader Enhancement settings — guard against null/undefined readerSettings
+  const safeSettings = readerSettings || {};
   const {
     fontFamily = 'lexend',
     fontSize = 22,
@@ -84,7 +59,7 @@ export function Reader({
     speechPitch = 1.0,
     speechVolume = 1.0,
     voiceURI = '',
-  } = readerSettings;
+  } = safeSettings;
 
   // Annotations state: highlights, notes, bookmarks
   const [annotations, setAnnotations] = useState([]);
@@ -165,7 +140,7 @@ export function Reader({
   }, [voiceURI, voices, setSelectedVoice]);
 
   // Session recording handler
-  const recordSessionData = () => {
+  const recordSessionData = useCallback(() => {
     if (sessionStartTimeRef.current && sessionWordCountRef.current > 0) {
       const elapsedSeconds = Math.max(1, Math.round((Date.now() - sessionStartTimeRef.current) / 1000));
       if (onRecordSession) {
@@ -180,9 +155,9 @@ export function Reader({
     }
     sessionStartTimeRef.current = null;
     sessionWordCountRef.current = 0;
-  };
+  }, [onRecordSession, documentTitle, rate]);
 
-  const handlePlayToggle = () => {
+  const handlePlayToggle = useCallback(() => {
     if (isPlaying) {
       pause();
     } else {
@@ -191,12 +166,12 @@ export function Reader({
       }
       play();
     }
-  };
+  }, [isPlaying, pause, play]);
 
-  const handleStop = () => {
+  const handleStop = useCallback(() => {
     recordSessionData();
     stop();
-  };
+  }, [stop]);
 
   // Keyboard Navigation: Space = Play/Pause, Esc = Stop, Left/Right = Skip Word, Up/Down = Adjust Rate
   useEffect(() => {
@@ -283,8 +258,7 @@ export function Reader({
   };
 
   // Handle custom text submit
-  const handleCustomTextSubmit = (e) => {
-    e.preventDefault();
+  const handleCustomTextSubmit = () => {
     if (!inputTextVal.trim()) return;
     handleStop();
     setCurrentText(inputTextVal.trim());
